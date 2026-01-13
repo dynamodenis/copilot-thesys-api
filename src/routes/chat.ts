@@ -3,20 +3,22 @@ import OpenAI from "openai";
 import { transformStream } from "@crayonai/stream";
 import { DBMessage, getMessageStore } from "../services/messageStore.js";
 import { tools } from "../services/tools.js";
-import {
-  CUSTOM_COMPONENT_SCHEMAS,
-  CUSTOM_COMPONENTS_SYSTEM_PROMPT,
-} from "../services/customComponents.js";
 
 const router = Router();
 
-// System prompt that guides the AI on how to behave
-const SYSTEM_PROMPT = `You are a helpful AI assistant for Orbiter.
+// System prompt optimized for fast, simple UI generation
+const SYSTEM_PROMPT = `You are a concise AI assistant for Orbiter.
 
-${CUSTOM_COMPONENTS_SYSTEM_PROMPT}
+CRITICAL RULES - Follow these strictly:
+1. Keep responses SHORT (2-4 sentences max for simple questions).
+2. Use ONLY plain markdown: headers, bold, bullet lists, links.
+3. NEVER use these components: Chart, Graph, Table, Tabs, Carousel, Accordion, Timeline, Layout, Section, DataTable, Kanban, Calendar.
+4. For data, use simple bullet points - never tables or charts.
+5. Avoid nested structures or complex formatting.
+6. Get straight to the point - no unnecessary preamble.
 
-Be concise, helpful, and friendly in your responses.
-`;
+You may use: simple text, headers, bullet lists, numbered lists, bold, links.
+Be helpful but brief.`;
 
 router.post("/", async (req: Request, res: Response) => {
   try {
@@ -43,21 +45,16 @@ router.post("/", async (req: Request, res: Response) => {
 
     messageStore.addMessage(prompt);
 
-    // Call C1 API with custom component schemas in metadata
+    console.log("Sending request to Thesys API with", messageStore.getOpenAICompatibleMessageList().length, "messages");
+    
+    // Call C1 API - using prompt-based component restrictions for simplicity
     const llmStream = await client.beta.chat.completions.runTools({
       model: "c1/openai/gpt-5/v-20251230",
-      temperature: 1,
+      temperature: 0.8, // Lower temperature for faster, more predictable responses
       messages: messageStore.getOpenAICompatibleMessageList(),
       stream: true,
       tool_choice: tools.length > 0 ? "auto" : "none",
       tools,
-      // // Pass custom component schemas to C1
-      // // This tells C1 about the custom React components available on the frontend
-      // metadata: {
-      //   thesys: JSON.stringify({
-      //     c1_custom_components: CUSTOM_COMPONENT_SCHEMAS,
-      //   }),
-      // },
     });
 
     // Set headers for SSE
@@ -101,7 +98,14 @@ router.post("/", async (req: Request, res: Response) => {
     await streamToClient();
   } catch (error) {
     console.error("Chat API error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
 });
 

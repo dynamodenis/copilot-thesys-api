@@ -80,18 +80,5 @@ export const CUSTOM_COMPONENT_SCHEMAS = {
   EditableCheckboxGroup: zodToJsonSchema(EditableCheckboxGroupSchema),
 };
 
-/**
- * System prompt addition for custom components
- * Add this to your system prompt to guide C1 on when to use custom components
- */
-export const CUSTOM_COMPONENTS_SYSTEM_PROMPT = `
-## Interactive Components
 
-When asking the user questions that require selection:
-- Use **EditableRadioGroup** for single-choice questions (pick ONE)
-- Use **EditableCheckboxGroup** for multi-choice questions (pick MANY)
-
-These components allow users to review and edit their responses before sending.
-Use clear, descriptive labels and helpful descriptions for each option.
-`;
 
