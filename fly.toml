@@ -1,0 +1,26 @@
+# fly.toml - Fly.io configuration
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "orbiter-copilot-server"
+primary_region = "iad"
+
+[build]
+
+[env]
+  PORT = "3001"
+  NODE_ENV = "production"
+  NODE_OPTIONS='--max-old-space-size=4096'
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
