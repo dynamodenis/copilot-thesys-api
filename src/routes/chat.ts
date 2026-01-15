@@ -32,17 +32,16 @@ CRITICAL RULES - Follow these strictly:
 6. Get straight to the point - no unnecessary preamble.
 
 IMPORTANT - SUMMARY REQUIREMENT:
-At the END of EVERY response, you MUST include a brief conversation summary using all the messages in the conversation thread in this exact format:
+At the END of EVERY response, you MUST include a brief conversation summary in this exact format:
 [SUMMARY]A 4-5 sentence summary of what the user wants to accomplish in this conversation.[/SUMMARY]
 
 The summary should capture the user's main goal or request. Update the summary as the conversation progresses to reflect the current understanding of what the user wants help with.
-Remember in include the SUMMARY at the end of the response not in the middle of the response.
+
 Example response format:
 Here are some people I can help you connect with...
 
 [SUMMARY]User wants to find people to introduce to John Smith for business development opportunities.[/SUMMARY]
 
-You may use: simple text, headers, bullet lists, numbered lists, bold, links.
 Be helpful but brief.`;
 
 router.post("/", async (req: Request, res: Response) => {
@@ -53,6 +52,8 @@ router.post("/", async (req: Request, res: Response) => {
       responseId: string;
       context?: string;
     };
+
+
 
     const client = new OpenAI({
       baseURL: "https://api.thesys.dev/v1/embed/",
@@ -65,7 +66,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     if (messageStore.getOpenAICompatibleMessageList().length === 0) {
       // Use leverage loop prompt for leverage-loops context to include summary generation
-      const systemPrompt = context === "leverage-loops" ? LEVERAGE_LOOP_SYSTEM_PROMPT : SYSTEM_PROMPT;
+      const systemPrompt = context === "leverage-loops" ?  LEVERAGE_LOOP_SYSTEM_PROMPT : SYSTEM_PROMPT;
       messageStore.addMessage({
         role: "system",
         content: systemPrompt,
