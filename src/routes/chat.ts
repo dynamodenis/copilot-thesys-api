@@ -20,12 +20,38 @@ CRITICAL RULES - Follow these strictly:
 You may use: simple text, headers, bullet lists, numbered lists, bold, links.
 Be helpful but brief.`;
 
+// System prompt for leverage loops that includes summary generation
+const LEVERAGE_LOOP_SYSTEM_PROMPT = `You are a concise AI assistant for Orbiter helping users with leverage loops.
+
+CRITICAL RULES - Follow these strictly:
+1. Keep responses SHORT (2-4 sentences max for simple questions).
+2. Use ONLY plain markdown: headers, bold, bullet lists, links.
+3. NEVER use these components: Chart, Graph, Table, Tabs, Carousel, Accordion, Timeline, Layout, Section, DataTable, Kanban, Calendar.
+4. For data, use simple bullet points - never tables or charts.
+5. Avoid nested structures or complex formatting.
+6. Get straight to the point - no unnecessary preamble.
+
+IMPORTANT - SUMMARY REQUIREMENT:
+At the END of EVERY response, you MUST include a brief conversation summary using all the messages in the conversation thread in this exact format:
+[SUMMARY]A 4-5 sentence summary of what the user wants to accomplish in this conversation.[/SUMMARY]
+
+The summary should capture the user's main goal or request. Update the summary as the conversation progresses to reflect the current understanding of what the user wants help with.
+Remember in include the SUMMARY at the end of the response not in the middle of the response.
+Example response format:
+Here are some people I can help you connect with...
+
+[SUMMARY]User wants to find people to introduce to John Smith for business development opportunities.[/SUMMARY]
+
+You may use: simple text, headers, bullet lists, numbered lists, bold, links.
+Be helpful but brief.`;
+
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { prompt, threadId, responseId } = req.body as {
+    const { prompt, threadId, responseId, context } = req.body as {
       prompt: DBMessage;
       threadId: string;
       responseId: string;
+      context?: string;
     };
 
     const client = new OpenAI({
@@ -35,21 +61,24 @@ router.post("/", async (req: Request, res: Response) => {
 
     const messageStore = getMessageStore(threadId);
 
-    // Add system prompt if this is a new conversation
+    // Add appropriate system prompt if this is a new conversation
+
     if (messageStore.getOpenAICompatibleMessageList().length === 0) {
+      // Use leverage loop prompt for leverage-loops context to include summary generation
+      const systemPrompt = context === "leverage-loops" ? LEVERAGE_LOOP_SYSTEM_PROMPT : SYSTEM_PROMPT;
       messageStore.addMessage({
         role: "system",
-        content: SYSTEM_PROMPT,
+        content: systemPrompt,
       });
+
     }
 
     messageStore.addMessage(prompt);
 
-    console.log("Sending request to Thesys API with", messageStore.getOpenAICompatibleMessageList().length, "messages");
     
     // Call C1 API - using prompt-based component restrictions for simplicity
     const llmStream = await client.beta.chat.completions.runTools({
-      model: "c1/openai/gpt-5/v-20251230",
+      model: "c1/anthropic/claude-sonnet-4/v-20251230",
       temperature: 0.8, // Lower temperature for faster, more predictable responses
       messages: messageStore.getOpenAICompatibleMessageList(),
       stream: true,
