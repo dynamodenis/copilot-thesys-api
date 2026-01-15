@@ -33,7 +33,8 @@ CRITICAL RULES - Follow these strictly:
 
 IMPORTANT - SUMMARY REQUIREMENT:
 At the END of EVERY response, you MUST include a brief conversation summary in this exact format:
-[SUMMARY]A 4-5 sentence summary of what the user wants to accomplish in this conversation.[/SUMMARY]
+[SUMMARY]A 2-3 sentence summary of what the user wants to accomplish in this conversation and how we can help them achieve it. Do not include extra details about the user
+since we already know who they are.[/SUMMARY]
 
 The summary should capture the user's main goal or request. Update the summary as the conversation progresses to reflect the current understanding of what the user wants help with.
 
