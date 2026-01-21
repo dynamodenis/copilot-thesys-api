@@ -3,6 +3,12 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type OpenAI from "openai";
 import type { FunctionParameters } from "openai/resources/shared.js";
 
+export interface XanoMcpClientOptions {
+  mcpUrl: string;
+  authToken?: string;
+  dataSource?: string;
+}
+
 /**
  * Xano MCP Client
  * Connects to a Xano-hosted MCP server via Streamable HTTP transport (new MCP protocol)
@@ -11,15 +17,27 @@ export class XanoMcpClient {
   private client: Client;
   private transport: StreamableHTTPClientTransport | null = null;
   private mcpUrl: string;
+  private authToken?: string;
+  private dataSource?: string;
   public tools: OpenAI.ChatCompletionTool[] = [];
   private connected: boolean = false;
 
-  constructor(mcpUrl: string) {
-    this.mcpUrl = mcpUrl;
+  constructor(options: XanoMcpClientOptions) {
+    this.mcpUrl = options.mcpUrl;
+    this.authToken = options.authToken;
+    this.dataSource = options.dataSource;
     this.client = new Client({
       name: "orbiter-copilot-mcp-client",
       version: "1.0.0",
     });
+  }
+
+  /**
+   * Update headers (e.g., when dataSource changes)
+   */
+  setHeaders(authToken?: string, dataSource?: string): void {
+    this.authToken = authToken;
+    this.dataSource = dataSource;
   }
 
   /**
@@ -32,18 +50,31 @@ export class XanoMcpClient {
     }
 
     try {
-      // console.log(`Connecting to Xano MCP server at: ${this.mcpUrl}`);
+      // Build custom headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
+      
+      if (this.dataSource) {
+        headers['x-data-source'] = this.dataSource;
+      }
 
-      // Create Streamable HTTP transport (new MCP protocol, replaces SSE)
-      this.transport = new StreamableHTTPClientTransport(new URL(this.mcpUrl));
+      // Create Streamable HTTP transport with custom headers
+      this.transport = new StreamableHTTPClientTransport(new URL(this.mcpUrl), {
+        requestInit: {
+          headers,
+        },
+      });
 
       // Connect to the MCP server
       await this.client.connect(this.transport);
 
       // List available tools from the MCP server
       const toolsResult = await this.client.listTools();
-      
-      // console.log(`Found ${toolsResult.tools.length} tools from Xano MCP:`);
       
       // Convert MCP tools to OpenAI-compatible format
       this.tools = toolsResult.tools.map((tool) => {
@@ -78,7 +109,6 @@ export class XanoMcpClient {
     name: string;
     args: Record<string, unknown>;
   }): Promise<{ tool_call_id: string; role: "tool"; content: string }> {
-    console.log(`Calling MCP tool "${name}" with args:`, JSON.stringify(args));
 
     try {
       const result = await this.client.callTool({
@@ -86,7 +116,6 @@ export class XanoMcpClient {
         arguments: args,
       });
 
-      console.log(`Tool "${name}" result:`, result);
 
       return {
         tool_call_id,
@@ -132,13 +161,20 @@ let xanoMcpClient: XanoMcpClient | null = null;
 /**
  * Get or create the Xano MCP client instance
  */
-export function getXanoMcpClient(): XanoMcpClient {
+export function getXanoMcpClient(authToken?: string, dataSource?: string): XanoMcpClient {
   if (!xanoMcpClient) {
     const mcpUrl = process.env.XANO_MCP_URL;
     if (!mcpUrl) {
       throw new Error("XANO_MCP_URL environment variable is not set");
     }
-    xanoMcpClient = new XanoMcpClient(mcpUrl);
+    xanoMcpClient = new XanoMcpClient({
+      mcpUrl,
+      authToken,
+      dataSource,
+    });
+  } else if (authToken || dataSource) {
+    // Update headers if provided
+    xanoMcpClient.setHeaders(authToken, dataSource);
   }
   return xanoMcpClient;
 }
@@ -146,11 +182,10 @@ export function getXanoMcpClient(): XanoMcpClient {
 /**
  * Ensure the MCP client is connected
  */
-export async function ensureXanoMcpConnection(): Promise<XanoMcpClient> {
-  const client = getXanoMcpClient();
+export async function ensureXanoMcpConnection(authToken?: string, dataSource?: string): Promise<XanoMcpClient> {
+  const client = getXanoMcpClient(authToken, dataSource);
   if (!client.isConnected()) {
     await client.connect();
   }
   return client;
 }
-

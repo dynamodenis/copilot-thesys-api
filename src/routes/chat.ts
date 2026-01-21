@@ -74,14 +74,18 @@ When generating GenUI components inside <content thesys="true"> tags, the JSON m
 
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { prompt, threadId, responseId, context, user_id, master_person_id } = req.body as {
+    const { prompt, threadId, responseId, context, user_id, master_person_id, dataSource } = req.body as {
       prompt: DBMessage;
       threadId: string;
       responseId: string;
       context?: string;
       user_id?: string;
       master_person_id?: string;
+      dataSource?: string;
     };
+
+    // Get auth token from request headers (forwarded from frontend)
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
 
     const client = new OpenAI({
       baseURL: "https://api.thesys.dev/v1/embed/",
@@ -124,7 +128,8 @@ router.post("/", async (req: Request, res: Response) => {
     
     if (process.env.XANO_MCP_URL) {
       try {
-        mcpClient = await ensureXanoMcpConnection();
+        // Pass auth token and dataSource to MCP client for x-data-source header
+        mcpClient = await ensureXanoMcpConnection(authToken, dataSource);
         // Convert MCP tools to runnable tools format
         mcpTools = mcpClient.tools.map((tool) => ({
           type: "function" as const,
